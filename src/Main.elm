@@ -11,7 +11,22 @@ main =
 
 
 type alias Model =
-    String
+    Cell
+
+
+type alias Cell =
+    { floor : CellFloor, ceiling : CellCeiling }
+
+
+type CellFloor
+    = Bomb
+    | BombCount Int
+
+
+type CellCeiling
+    = Flagged
+    | Covered
+    | Uncovered
 
 
 type Msg
@@ -20,12 +35,30 @@ type Msg
 
 init : Model
 init =
-    "Hello, Minesweeper!"
+    Cell (BombCount 2) Uncovered
 
 
 view : Model -> Html Msg
 view model =
-    Ui.layout [] <| Ui.text model
+    Ui.layout [] <| viewCell model
+
+
+viewCell : Cell -> Ui.Element Msg
+viewCell { floor, ceiling } =
+    Ui.el [] <|
+        Ui.text <|
+            case ( floor, ceiling ) of
+                ( _, Covered ) ->
+                    "C"
+
+                ( _, Flagged ) ->
+                    "F"
+
+                ( Bomb, _ ) ->
+                    "B"
+
+                ( BombCount bc, _ ) ->
+                    String.fromInt bc
 
 
 update : Msg -> Model -> Model
