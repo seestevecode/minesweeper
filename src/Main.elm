@@ -20,7 +20,7 @@ main =
 
 
 type alias Model =
-    { grid : Grid, bombCoords : List ( Int, Int ) }
+    { grid : Grid, mineCoords : List Coord }
 
 
 type alias Grid =
@@ -36,8 +36,8 @@ type alias CellCoord =
 
 
 type CellFloor
-    = Bomb
-    | BombCount Int
+    = Mine
+    | MineCount Int
 
 
 type CellCeiling
@@ -46,23 +46,27 @@ type CellCeiling
     | Uncovered
 
 
+type alias Coord =
+    ( Int, Int )
+
+
 type Msg
-    = NewBombs (List ( Int, Int ))
+    = NewGrid (List Coord)
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
     let
         floors =
-            List.repeat (gridHeight * gridWidth) (BombCount 0)
+            List.repeat (gridHeight * gridWidth) (MineCount 0)
 
         ceilings =
             List.repeat (gridHeight * gridWidth) Uncovered
     in
     ( { grid = List.map3 Cell allCoords floors ceilings
-      , bombCoords = []
+      , mineCoords = []
       }
-    , Random.generate NewBombs bombGenerator
+    , Random.generate NewGrid mineGenerator
     )
 
 
@@ -76,19 +80,19 @@ gridWidth =
     9
 
 
-totalBombs : Int
-totalBombs =
+totalMines : Int
+totalMines =
     10
 
 
-allCoords : List ( Int, Int )
+allCoords : List Coord
 allCoords =
     ListX.lift2 Tuple.pair (List.range 1 gridHeight) (List.range 1 gridWidth)
 
 
-bombGenerator : Random.Generator (List ( Int, Int ))
-bombGenerator =
-    allCoords |> Random.List.shuffle |> Random.map (List.take totalBombs)
+mineGenerator : Random.Generator (List Coord)
+mineGenerator =
+    allCoords |> Random.List.shuffle |> Random.map (List.take totalMines)
 
 
 view : Model -> Html Msg
@@ -128,31 +132,31 @@ viewCell { floor, ceiling } =
                     ( _, Flagged ) ->
                         "F"
 
-                    ( Bomb, Uncovered ) ->
+                    ( Mine, Uncovered ) ->
                         "B"
 
-                    ( BombCount bombCount, Uncovered ) ->
-                        String.fromInt bombCount
+                    ( MineCount mineCount, Uncovered ) ->
+                        String.fromInt mineCount
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        NewBombs bombs ->
+        NewGrid mines ->
             ( { model
-                | grid = model.grid |> placeBombs bombs |> placeBombCounts
-                , bombCoords = bombs
+                | grid = model.grid |> placeMines mines |> placeMineCounts
+                , mineCoords = mines
               }
             , Cmd.none
             )
 
 
-placeBombs : List ( Int, Int ) -> Grid -> Grid
-placeBombs bombs grid =
+placeMines : List Coord -> Grid -> Grid
+placeMines mines grid =
     List.map
         (\cell ->
-            if List.member cell.coord bombs then
-                { cell | floor = Bomb }
+            if List.member cell.coord mines then
+                { cell | floor = Mine }
 
             else
                 cell
@@ -160,12 +164,12 @@ placeBombs bombs grid =
         grid
 
 
-placeBombCounts : Grid -> Grid
-placeBombCounts grid =
+placeMineCounts : Grid -> Grid
+placeMineCounts grid =
     List.map
         (\cell ->
-            if cell.floor /= Bomb then
-                { cell | floor = BombCount <| countBombs cell.coord grid }
+            if cell.floor /= Mine then
+                { cell | floor = MineCount <| countMines cell.coord grid }
 
             else
                 cell
@@ -173,14 +177,14 @@ placeBombCounts grid =
         grid
 
 
-countBombs : ( Int, Int ) -> Grid -> Int
-countBombs coord grid =
+countMines : Coord -> Grid -> Int
+countMines coord grid =
     List.filter (\cell -> List.member cell.coord (getNeighbours coord)) grid
-        |> List.filter (\cell -> cell.floor == Bomb)
+        |> List.filter (\cell -> cell.floor == Mine)
         |> List.length
 
 
-getNeighbours : ( Int, Int ) -> List ( Int, Int )
+getNeighbours : Coord -> List ( Int, Int )
 getNeighbours ( coordCol, coordRow ) =
     let
         columns =
