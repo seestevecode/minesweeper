@@ -4,15 +4,23 @@ import Browser
 import Element as Ui
 import Element.Border as Border
 import Html exposing (Html)
+import List.Extra as ListX
+import Random
+import Random.List
 
 
 main : Program () Model Msg
 main =
-    Browser.sandbox { init = init, view = view, update = update }
+    Browser.element
+        { init = init
+        , view = view
+        , update = update
+        , subscriptions = subscriptions
+        }
 
 
 type alias Model =
-    Grid
+    { grid : Grid, bombCoords : List ( Int, Int ) }
 
 
 type alias Grid =
@@ -39,28 +47,53 @@ type CellCeiling
 
 
 type Msg
-    = NoOp
+    = NewBombs (List ( Int, Int ))
+
+
+init : () -> ( Model, Cmd Msg )
+init _ =
+    let
+        floors =
+            List.repeat (gridHeight * gridWidth) (BombCount 0)
+
+        ceilings =
+            List.repeat (gridHeight * gridWidth) Uncovered
+    in
+    ( { grid = List.map3 Cell allCoords floors ceilings
+      , bombCoords = []
+      }
+    , Random.generate NewBombs bombGenerator
+    )
 
 
 gridHeight : Int
 gridHeight =
-    2
+    9
 
 
-init : Model
-init =
-    [ Cell ( 1, 1 ) Bomb Covered
-    , Cell ( 1, 2 ) Bomb Uncovered
-    , Cell ( 1, 3 ) Bomb Flagged
-    , Cell ( 2, 1 ) (BombCount 2) Covered
-    , Cell ( 2, 2 ) (BombCount 3) Flagged
-    , Cell ( 2, 3 ) (BombCount 0) Uncovered
-    ]
+gridWidth : Int
+gridWidth =
+    9
+
+
+totalBombs : Int
+totalBombs =
+    10
+
+
+allCoords : List ( Int, Int )
+allCoords =
+    ListX.lift2 Tuple.pair (List.range 1 gridHeight) (List.range 1 gridWidth)
+
+
+bombGenerator : Random.Generator (List ( Int, Int ))
+bombGenerator =
+    allCoords |> Random.List.shuffle |> Random.map (List.take totalBombs)
 
 
 view : Model -> Html Msg
 view model =
-    Ui.layout [] <| viewGrid model
+    Ui.layout [] <| Ui.column [] <| [ viewGrid model.grid ]
 
 
 viewGrid : Grid -> Ui.Element Msg
@@ -102,8 +135,26 @@ viewCell { floor, ceiling } =
                         String.fromInt bombCount
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        NoOp ->
-            model
+        NewBombs bombs ->
+            ( { model | grid = placeBombs bombs model.grid, bombCoords = bombs }, Cmd.none )
+
+
+placeBombs : List ( Int, Int ) -> Grid -> Grid
+placeBombs bombs grid =
+    List.map
+        (\cell ->
+            if List.member cell.coord bombs then
+                { cell | floor = Bomb }
+
+            else
+                cell
+        )
+        grid
+
+
+subscriptions : Model -> Sub Msg
+subscriptions =
+    always Sub.none
