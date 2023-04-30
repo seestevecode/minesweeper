@@ -20,7 +20,7 @@ main =
 
 
 type alias Model =
-    { grid : Grid, mineCoords : List Coord }
+    { grid : Grid }
 
 
 type alias Grid =
@@ -28,10 +28,10 @@ type alias Grid =
 
 
 type alias Cell =
-    { coord : CellCoord, floor : CellFloor, ceiling : CellCeiling }
+    { coord : Coord, floor : CellFloor, ceiling : CellCeiling }
 
 
-type alias CellCoord =
+type alias Coord =
     ( Int, Int )
 
 
@@ -44,10 +44,6 @@ type CellCeiling
     = Flagged
     | Covered
     | Uncovered
-
-
-type alias Coord =
-    ( Int, Int )
 
 
 type Msg
@@ -63,9 +59,7 @@ init _ =
         ceilings =
             List.repeat (gridHeight * gridWidth) Uncovered
     in
-    ( { grid = List.map3 Cell allCoords floors ceilings
-      , mineCoords = []
-      }
+    ( { grid = List.map3 Cell allCoords floors ceilings }
     , Random.generate NewGrid mineGenerator
     )
 
@@ -133,7 +127,7 @@ viewCell { floor, ceiling } =
                         "F"
 
                     ( Mine, Uncovered ) ->
-                        "B"
+                        "M"
 
                     ( MineCount mineCount, Uncovered ) ->
                         String.fromInt mineCount
@@ -143,10 +137,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         NewGrid mines ->
-            ( { model
-                | grid = model.grid |> placeMines mines |> placeMineCounts
-                , mineCoords = mines
-              }
+            ( { model | grid = model.grid |> placeMines mines |> placeMineCounts }
             , Cmd.none
             )
 
@@ -184,7 +175,7 @@ countMines coord grid =
         |> List.length
 
 
-getNeighbours : Coord -> List ( Int, Int )
+getNeighbours : Coord -> List Coord
 getNeighbours ( coordCol, coordRow ) =
     let
         columns =
