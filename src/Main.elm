@@ -3,6 +3,7 @@ module Main exposing (main)
 import Browser
 import Element as Ui
 import Element.Border as Border
+import Element.Input as Input
 import Html exposing (Html)
 import List.Extra as ListX
 import Random
@@ -48,6 +49,7 @@ type CellCeiling
 
 type Msg
     = NewGrid (List Coord)
+    | UncoverCell Coord
 
 
 init : () -> ( Model, Cmd Msg )
@@ -109,28 +111,30 @@ viewGrid grid =
 
 
 viewCell : Cell -> Ui.Element Msg
-viewCell { floor, ceiling } =
-    Ui.el
+viewCell cell =
+    Input.button
         [ Border.solid
         , Border.width 1
         , Ui.width <| Ui.px 50
         , Ui.height <| Ui.px 50
         ]
-    <|
-        Ui.el [ Ui.centerX, Ui.centerY ] <|
-            Ui.text <|
-                case ( floor, ceiling ) of
-                    ( _, Covered ) ->
-                        "C"
+        { onPress = Just <| UncoverCell cell.coord
+        , label =
+            Ui.el [ Ui.centerX, Ui.centerY ] <|
+                Ui.text <|
+                    case ( cell.floor, cell.ceiling ) of
+                        ( _, Covered ) ->
+                            "C"
 
-                    ( _, Flagged ) ->
-                        "F"
+                        ( _, Flagged ) ->
+                            "F"
 
-                    ( Mine, Uncovered ) ->
-                        "M"
+                        ( Mine, Uncovered ) ->
+                            "M"
 
-                    ( MineCount mineCount, Uncovered ) ->
-                        String.fromInt mineCount
+                        ( MineCount mineCount, Uncovered ) ->
+                            String.fromInt mineCount
+        }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -143,6 +147,22 @@ update msg model =
                         |> placeMines mines
                         |> placeMineCounts
                         |> List.map (\cell -> { cell | ceiling = Covered })
+              }
+            , Cmd.none
+            )
+
+        UncoverCell coord ->
+            ( { model
+                | grid =
+                    model.grid
+                        |> List.map
+                            (\cell ->
+                                if cell.coord == coord then
+                                    { cell | ceiling = Uncovered }
+
+                                else
+                                    cell
+                            )
               }
             , Cmd.none
             )
