@@ -139,7 +139,12 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         NewBombs bombs ->
-            ( { model | grid = placeBombs bombs model.grid, bombCoords = bombs }, Cmd.none )
+            ( { model
+                | grid = model.grid |> placeBombs bombs |> placeBombCounts
+                , bombCoords = bombs
+              }
+            , Cmd.none
+            )
 
 
 placeBombs : List ( Int, Int ) -> Grid -> Grid
@@ -153,6 +158,39 @@ placeBombs bombs grid =
                 cell
         )
         grid
+
+
+placeBombCounts : Grid -> Grid
+placeBombCounts grid =
+    List.map
+        (\cell ->
+            if cell.floor /= Bomb then
+                { cell | floor = BombCount <| countBombs cell.coord grid }
+
+            else
+                cell
+        )
+        grid
+
+
+countBombs : ( Int, Int ) -> Grid -> Int
+countBombs coord grid =
+    List.filter (\cell -> List.member cell.coord (getNeighbours coord)) grid
+        |> List.filter (\cell -> cell.floor == Bomb)
+        |> List.length
+
+
+getNeighbours : ( Int, Int ) -> List ( Int, Int )
+getNeighbours ( coordCol, coordRow ) =
+    let
+        columns =
+            List.range (max (coordCol - 1) 1) (min (coordCol + 1) gridHeight)
+
+        rows =
+            List.range (max (coordRow - 1) 1) (min (coordRow + 1) gridWidth)
+    in
+    ListX.lift2 Tuple.pair columns rows
+        |> List.filter (\coord -> coord /= ( coordCol, coordRow ))
 
 
 subscriptions : Model -> Sub Msg
