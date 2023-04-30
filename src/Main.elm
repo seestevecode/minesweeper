@@ -137,7 +137,13 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         NewGrid mines ->
-            ( { model | grid = model.grid |> placeMines mines |> placeMineCounts }
+            ( { model
+                | grid =
+                    model.grid
+                        |> placeMines mines
+                        |> placeMineCounts
+                        |> List.map (\cell -> { cell | ceiling = Covered })
+              }
             , Cmd.none
             )
 
