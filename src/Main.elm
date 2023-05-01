@@ -1,8 +1,10 @@
 module Main exposing (main)
 
 import Browser
+import Dict exposing (Dict)
 import Element as Ui
-import Element.Border as Border
+import Element.Background as Background
+import Element.Font as Font
 import Element.Input as Input
 import Html exposing (Html)
 import List.Extra as ListX
@@ -103,38 +105,87 @@ viewGrid grid =
             grid
                 |> List.filter (\cell -> Tuple.first cell.coord == row)
                 |> List.map viewCell
-                |> Ui.row [ Ui.spacing 5 ]
+                |> Ui.row [ Ui.spacing 2 ]
     in
     List.range 1 gridHeight
         |> List.map viewRow
-        |> Ui.column [ Ui.spacing 5 ]
+        |> Ui.column [ Ui.spacing 2 ]
 
 
 viewCell : Cell -> Ui.Element Msg
 viewCell cell =
     Input.button
-        [ Border.solid
-        , Border.width 1
-        , Ui.width <| Ui.px 50
-        , Ui.height <| Ui.px 50
-        ]
+        (cellAttributes cell)
         { onPress = Just <| UncoverCell cell.coord
-        , label =
-            Ui.el [ Ui.centerX, Ui.centerY ] <|
-                Ui.text <|
-                    case ( cell.floor, cell.ceiling ) of
-                        ( _, Covered ) ->
-                            "C"
-
-                        ( _, Flagged ) ->
-                            "F"
-
-                        ( Mine, Uncovered ) ->
-                            "M"
-
-                        ( MineCount mineCount, Uncovered ) ->
-                            String.fromInt mineCount
+        , label = cellLabel cell
         }
+
+
+cellAttributes : Cell -> List (Ui.Attribute Msg)
+cellAttributes cell =
+    let
+        commonAttributes =
+            [ Ui.width <| Ui.px 50
+            , Ui.height <| Ui.px 50
+            , Font.bold
+            , Font.size 30
+            ]
+
+        attributes =
+            case ( cell.floor, cell.ceiling ) of
+                ( _, Covered ) ->
+                    [ Background.color <| Ui.rgb255 128 128 128
+                    ]
+
+                ( _, Flagged ) ->
+                    []
+
+                ( Mine, Uncovered ) ->
+                    [ Background.color <| Ui.rgb255 200 200 200 ]
+
+                ( MineCount mineCount, Uncovered ) ->
+                    [ Background.color <| Ui.rgb255 200 200 200
+                    , Font.color <|
+                        Maybe.withDefault (Ui.rgb255 0 0 0) <|
+                            Dict.get mineCount mineCountColours
+                    ]
+    in
+    commonAttributes ++ attributes
+
+
+mineCountColours : Dict Int Ui.Color
+mineCountColours =
+    Dict.fromList
+        [ ( 0, Ui.rgb255 0 0 0 )
+        , ( 1, Ui.rgb255 0 0 255 )
+        , ( 2, Ui.rgb255 0 123 0 )
+        , ( 3, Ui.rgb255 255 0 0 )
+        , ( 4, Ui.rgb255 0 0 123 )
+        , ( 5, Ui.rgb255 123 0 0 )
+        , ( 6, Ui.rgb255 0 123 123 )
+        , ( 7, Ui.rgb255 0 0 0 )
+        , ( 8, Ui.rgb255 0 0 255 )
+        ]
+
+
+cellLabel : Cell -> Ui.Element Msg
+cellLabel cell =
+    Ui.el [ Ui.centerX, Ui.centerY ] <|
+        case ( cell.floor, cell.ceiling ) of
+            ( _, Covered ) ->
+                Ui.none
+
+            ( _, Flagged ) ->
+                Ui.text "F"
+
+            ( Mine, Uncovered ) ->
+                Ui.text "M"
+
+            ( MineCount 0, Uncovered ) ->
+                Ui.none
+
+            ( MineCount mineCount, Uncovered ) ->
+                Ui.text <| String.fromInt mineCount
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
